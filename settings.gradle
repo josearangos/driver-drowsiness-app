@@ -1,0 +1,4 @@
+rootProject.name='driver-drowsiness-app'
+include ':app'
+include ':opencvLibrary430'
+include ':openCVLibrary345'
