@@ -121,35 +121,46 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         MatOfRect ReyesDetections = new MatOfRect();
 
         faceDetector.detectMultiScale(mGray,faceDetections);
-        ReyesDetector.detectMultiScale(mGray,ReyesDetections);
-        LeyesDetector.detectMultiScale(mGray,LeyesDetections);
 
 
-         for(Rect rect: faceDetections.toArray()){
+        for(Rect rect: faceDetections.toArray()){
+
             Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
                     new Scalar(0,255,0));
+
+            Mat face = mRgba.submat(rect);
+
+            //OJO IZQUIERDO
+
+            LeyesDetector.detectMultiScale(face,LeyesDetections);
+
+            System.out.println("TAMAL"+String.valueOf(LeyesDetections.toArray().length));
+
+            for(Rect rect_leyes: LeyesDetections.toArray()){
+                 Imgproc.rectangle(face,new Point(rect_leyes.x,rect_leyes.y),new Point(rect_leyes.x+rect_leyes.width, rect_leyes.y + rect_leyes.height),
+                         new Scalar(0,255,0));
+
+                 //System.out.println("IZQUIERDO");
+                 //predictModel(face,rect_leyes);
+
+             }
+
+            //OJO DERECHO
+            ReyesDetector.detectMultiScale(face,ReyesDetections);
+
+            for(Rect rect_Reyes: ReyesDetections.toArray()){
+                Imgproc.rectangle(face,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
+                        new Scalar(0,255,0));
+
+                System.out.println("DERECHO");
+                //predictModel(mRgba,rect);
+
+
+            }
+
+
+
          }
-
-
-         for(Rect rect: LeyesDetections.toArray()){
-            Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
-                    new Scalar(0,255,0));
-
-             //System.out.println("IZQUIERDO");
-             predictModel(mRgba,rect);
-         }
-
-
-         /*
-        for(Rect rect: ReyesDetections.toArray()){
-            Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
-                    new Scalar(0,255,0));
-
-            System.out.println("DERECHO");
-            predictModel(mRgba,rect);
-
-
-        }*/
 
 
 
@@ -192,23 +203,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     }
 
-    /*
 
-            int sz_1[] = {leyes.size(0), leyes.size(1), 1};
-        Mat reshape_1 = new Mat(n_reshape_1(nativeObj, cn, newshape.length, newshape));
-
-            Double[][][] reshape_1 = new Double[1][24][24];
-
-    * for(int i=0; i<reshape_1[0].length;i++){
-            for(int j=0; j<reshape_1[1].length;j++){
-                for(int k=0; k<reshape_1[12].length;k++){
-                    reshape_1[i][j][k] =leyes.get(j,k);
-                }
-            }
-        }
-    *
-    *
-    * */
 
 
     @Override
@@ -261,11 +256,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                     while ((bytesRead = is_face.read(buffer)) != -1){
                         fos_face.write(buffer,0,bytesRead);
                     }
+
+
                     buffer = new byte[4096];
 
                     while ((bytesRead = is_Reyes.read(buffer)) != -1){
                         fos_Reyes.write(buffer,0,bytesRead);
                     }
+
                     buffer = new byte[4096];
 
                     while ((bytesRead = is_Leyes.read(buffer)) != -1){
@@ -303,8 +301,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                         cascadeDir_Leyes.delete();
                     }
 
-
-                    javaCameraView.enableView();
+                   javaCameraView.enableView();
 
                     break;
                 default:
