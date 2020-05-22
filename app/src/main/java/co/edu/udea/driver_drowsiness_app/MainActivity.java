@@ -23,6 +23,7 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.objdetect.Objdetect;
 import org.tensorflow.lite.Interpreter;
 
 import java.io.File;
@@ -38,7 +39,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     File cascFile_face, cascFile_Reyes, cascFile_Leyes;
     CameraBridgeViewBase cameraBridgeViewBase;
     CascadeClassifier faceDetector, ReyesDetector, LeyesDetector;
-    CascadeClassifier leye;
     private  Mat mRgba, mGray;
     JavaCameraView javaCameraView;
     AssetFileDescriptor fileDescriptor;
@@ -59,23 +59,18 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
             ByteBuffer tfLiteFile = fileChannel.map(FileChannel.MapMode.READ_ONLY,startOffset,declaredLength);
             interpreter  = new Interpreter(tfLiteFile);
-
-
-
-
-
-
-
-
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-
-        cameraBridgeViewBase =(JavaCameraView) findViewById(R.id.cameraView);
+       /*
+       *  cameraBridgeViewBase =(JavaCameraView) findViewById(R.id.cameraView);
         cameraBridgeViewBase.setCameraIndex(1);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(this);
+       * */
+
+
         javaCameraView =(JavaCameraView) findViewById(R.id.cameraView);
         javaCameraView.setCameraIndex(1);
         javaCameraView.setVisibility(SurfaceView.VISIBLE);
@@ -122,45 +117,44 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
         faceDetector.detectMultiScale(mGray,faceDetections);
 
+        //ReyesDetector.detectMultiScale(mGray,ReyesDetections);
+
 
         for(Rect rect: faceDetections.toArray()){
 
             Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
                     new Scalar(0,255,0));
 
-            Mat face = mRgba.submat(rect);
 
-            //OJO IZQUIERDO
-
-            LeyesDetector.detectMultiScale(face,LeyesDetections);
-
-            System.out.println("TAMAL"+String.valueOf(LeyesDetections.toArray().length));
-
-            for(Rect rect_leyes: LeyesDetections.toArray()){
-                 Imgproc.rectangle(face,new Point(rect_leyes.x,rect_leyes.y),new Point(rect_leyes.x+rect_leyes.width, rect_leyes.y + rect_leyes.height),
-                         new Scalar(0,255,0));
-
-                 //System.out.println("IZQUIERDO");
-                 //predictModel(face,rect_leyes);
-
-             }
-
-            //OJO DERECHO
-            ReyesDetector.detectMultiScale(face,ReyesDetections);
-
-            for(Rect rect_Reyes: ReyesDetections.toArray()){
-                Imgproc.rectangle(face,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
-                        new Scalar(0,255,0));
-
-                System.out.println("DERECHO");
-                //predictModel(mRgba,rect);
-
-
-            }
 
 
 
          }
+
+        LeyesDetector.detectMultiScale(mGray,LeyesDetections);
+        //OJO IZQUIERDO
+        Rect rect_leyes[] = LeyesDetections.toArray();
+        Imgproc.rectangle(mRgba,new Point(rect_leyes[0].x,rect_leyes[0].y),new Point(rect_leyes[0].x+rect_leyes[0].width, rect_leyes[0].y + rect_leyes[0].height),
+                new Scalar(0,0,255));
+        //System.out.println("IZQUIERDO");
+        //predictModel(face,rect_leyes);
+
+
+        //OJO DERECHO
+
+        for(Rect rect_Reyes: ReyesDetections.toArray()){
+           /*
+           *  Imgproc.rectangle(mRgba,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
+                    new Scalar(0,255,0));
+
+           * */
+            System.out.println("DERECHO");
+            //predictModel(mRgba,rect);
+
+
+        }
+
+
 
 
 
@@ -230,78 +224,81 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
             switch (status){
                 case LoaderCallbackInterface.SUCCESS:
+
+
+                    //Face detection classifier
                     InputStream is_face = getResources().openRawResource(R.raw.haarcascade_frontalface_alt2);
-                    InputStream is_Reyes = getResources().openRawResource(R.raw.haarcascade_righteye_2splits);
-                    InputStream is_Leyes = getResources().openRawResource(R.raw.haarcascade_lefteye_2splits);
-
-
                     File cascadeDir_faces = getDir("cascade", Context.MODE_PRIVATE);
-                    File cascadeDir_Leyes = getDir("cascade", Context.MODE_PRIVATE);
-                    File cascadeDir_Reyes = getDir("cascade", Context.MODE_PRIVATE);
-
-
                     cascFile_face  = new File(cascadeDir_faces,"haarcascade_frontalface_alt2.xml");
-                    cascFile_Reyes  = new File(cascadeDir_Reyes,"haarcascade_righteye_2splits.xml");
-                    cascFile_Leyes =  new File(cascadeDir_Leyes,"haarcascade_lefteye_2splits.xml");
-
-
                     FileOutputStream fos_face = new FileOutputStream(cascFile_face);
-                    FileOutputStream fos_Reyes = new FileOutputStream(cascFile_Reyes);
-                    FileOutputStream fos_Leyes = new FileOutputStream(cascFile_Leyes);
-
-
                     byte[] buffer = new byte[4096];
                     int bytesRead;
 
                     while ((bytesRead = is_face.read(buffer)) != -1){
                         fos_face.write(buffer,0,bytesRead);
                     }
-
-
-                    buffer = new byte[4096];
-
-                    while ((bytesRead = is_Reyes.read(buffer)) != -1){
-                        fos_Reyes.write(buffer,0,bytesRead);
-                    }
-
-                    buffer = new byte[4096];
-
-                    while ((bytesRead = is_Leyes.read(buffer)) != -1){
-                        fos_Leyes.write(buffer,0,bytesRead);
-                    }
-
                     is_face.close();
-                    is_Leyes.close();
-                    is_Reyes.close();
-
                     fos_face.close();
-                    fos_Leyes.close();
+
+                    // ------------------ load right eye classificator -----------------------
+
+                    InputStream is_Reyes = getResources().openRawResource(R.raw.haarcascade_righteye_2splits);
+                    File cascadeDir_Reyes = getDir("cascade", Context.MODE_PRIVATE);
+                    cascFile_Reyes  = new File(cascadeDir_Reyes,"haarcascade_righteye_2splits.xml");
+                    FileOutputStream fos_Reyes = new FileOutputStream(cascFile_Reyes);
+                    byte[] bufferRE = new byte[4096];
+                    int bytesReadER;
+                    while ((bytesReadER = is_Reyes.read(bufferRE)) != -1){
+                        fos_Reyes.write(bufferRE,0,bytesReadER);
+                    }
+                    is_Reyes.close();
                     fos_Reyes.close();
+
+                    // ------------------ load left eye classificator -----------------------
+                    InputStream is_Leyes = getResources().openRawResource(R.raw.haarcascade_lefteye_2splits);
+                    File cascadeDir_Leyes = getDir("cascade", Context.MODE_PRIVATE);
+                    cascFile_Leyes =  new File(cascadeDir_Leyes,"haarcascade_lefteye_2splits.xml");
+                    FileOutputStream fos_Leyes = new FileOutputStream(cascFile_Leyes);
+
+                    byte[] bufferEL = new byte[4096];
+
+                    int bytesReadEL;
+                    while ((bytesReadEL = is_Leyes.read(bufferEL)) != -1) {
+                        fos_Leyes.write(bufferEL, 0, bytesReadEL);
+                    }
+
+                    is_Leyes.close();
+                    fos_Leyes.close();
 
 
                     faceDetector = new CascadeClassifier(cascFile_face.getAbsolutePath());
                     ReyesDetector = new CascadeClassifier(cascFile_Reyes.getAbsolutePath());
                     LeyesDetector = new CascadeClassifier(cascFile_Leyes.getAbsolutePath());
 
+
+
                     if (faceDetector.empty()){
                         faceDetector = null;
                     }else{
-                        cascadeDir_faces.delete();
+                        //cascadeDir_faces.delete();
                     }
 
                     if (ReyesDetector.empty()){
                         ReyesDetector = null;
                     }else{
-                        cascadeDir_Reyes.delete();
+                        //cascadeDir_Reyes.delete();
                     }
 
                     if (LeyesDetector.empty()){
                         LeyesDetector = null;
                     }else{
-                        cascadeDir_Leyes.delete();
+                        //cascadeDir_Leyes.delete();
                     }
 
-                   javaCameraView.enableView();
+
+                    javaCameraView.enableFpsMeter();
+                    javaCameraView.enableView();
+
 
                     break;
                 default:
