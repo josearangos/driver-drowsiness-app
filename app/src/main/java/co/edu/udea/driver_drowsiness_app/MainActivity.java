@@ -110,7 +110,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
-
         MatOfRect faceDetections = new MatOfRect();
         MatOfRect LeyesDetections = new MatOfRect();
         MatOfRect ReyesDetections = new MatOfRect();
@@ -118,15 +117,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         faceDetector.detectMultiScale(mGray,faceDetections);
 
         //ReyesDetector.detectMultiScale(mGray,ReyesDetections);
-
-
         for(Rect rect: faceDetections.toArray()){
-
             Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
                     new Scalar(0,255,0));
-
-
-
 
 
          }
