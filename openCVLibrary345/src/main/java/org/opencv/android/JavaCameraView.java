@@ -215,8 +215,7 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
                     Log.d(TAG, "startPreview");
 
                     //MY CODE
-
-
+                    
 
                     mCamera.startPreview();
                 }

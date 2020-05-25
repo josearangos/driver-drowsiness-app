@@ -4,8 +4,11 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.view.SurfaceView;
+import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -45,10 +48,25 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     FileInputStream inputStream;
     FileChannel fileChannel;
     Interpreter interpreter;
+    TextView score;
+    int cont= 0;
+    MediaPlayer alarm;
+
+
+    Mat mRgbaF;
+    Mat mRgbaT;
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        score = (TextView)findViewById(R.id.score);
+
+
+
+         alarm = MediaPlayer.create(this,R.raw.alarma);
 
         try {
             fileDescriptor = getAssets().openFd("cnnCat2.tflite");
@@ -76,6 +94,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         javaCameraView.setVisibility(SurfaceView.VISIBLE);
 
 
+
+
         if(!OpenCVLoader.initDebug()){
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this,baseCallback);
 
@@ -96,8 +116,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     @Override
     public void onCameraViewStarted(int width, int height) {
-        mRgba = new Mat();
+        //mRgba = new Mat();
         mGray = new Mat();
+
+        mRgba = new Mat();
+        mRgbaF = new Mat(height, width, CvType.CV_8UC4);
+        mRgbaT = new Mat(width, height, CvType.CV_8UC4);
+
+
     }
 
     @Override
@@ -109,52 +135,66 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mRgba = inputFrame.rgba();
-        mGray = inputFrame.gray();
+        //mGray = inputFrame.gray();
+
+
+        // Rotate mRgba 90 degrees
+        Core.transpose(mRgba, mRgbaT);
+        Imgproc.resize(mRgbaT, mRgbaF, mRgbaF.size(), 0,0, 0);
+        Core.flip(mRgbaF, mRgba, 0 );
+        Imgproc.cvtColor(mRgba,mGray,Imgproc.COLOR_RGB2GRAY);
+
+
         MatOfRect faceDetections = new MatOfRect();
         MatOfRect LeyesDetections = new MatOfRect();
         MatOfRect ReyesDetections = new MatOfRect();
-
+        float P_Leyes = 0;
+        float P_Reyes = 0;
         faceDetector.detectMultiScale(mGray,faceDetections);
-
         //ReyesDetector.detectMultiScale(mGray,ReyesDetections);
         for(Rect rect: faceDetections.toArray()){
             Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
                     new Scalar(0,255,0));
-
-
-         }
-
-        LeyesDetector.detectMultiScale(mGray,LeyesDetections);
-        //OJO IZQUIERDO
-        Rect rect_leyes[] = LeyesDetections.toArray();
-        Imgproc.rectangle(mRgba,new Point(rect_leyes[0].x,rect_leyes[0].y),new Point(rect_leyes[0].x+rect_leyes[0].width, rect_leyes[0].y + rect_leyes[0].height),
-                new Scalar(0,0,255));
-        //System.out.println("IZQUIERDO");
-        //predictModel(face,rect_leyes);
-
-
-        //OJO DERECHO
-
-        for(Rect rect_Reyes: ReyesDetections.toArray()){
-           /*
-           *  Imgproc.rectangle(mRgba,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
-                    new Scalar(0,255,0));
-
-           * */
-            System.out.println("DERECHO");
-            //predictModel(mRgba,rect);
-
-
         }
 
 
+        LeyesDetector.detectMultiScale(mGray,LeyesDetections);
+        //Left Eyes
+        for (Rect rect_leyes: LeyesDetections.toArray()){
+            Imgproc.rectangle(mRgba,new Point(rect_leyes.x,rect_leyes.y),new Point(rect_leyes.x+rect_leyes.width,
+                            rect_leyes.y + rect_leyes.height),
+                    new Scalar(0,0,255));
 
+            P_Leyes = predictModel(mRgba,rect_leyes);
 
+        }
+        //Rigth Eyes
+        ReyesDetector.detectMultiScale(mGray,ReyesDetections);
+        for(Rect rect_Reyes: ReyesDetections.toArray()){
+               /*Imgproc.rectangle(face,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
+                    new Scalar(0,0,255));
+                */
+            P_Reyes = predictModel(mRgba,rect_Reyes);
+
+        }
+        if(P_Leyes == 1 &&   P_Reyes == 1){
+            cont++;
+        }else{
+            cont--;
+        }
+        if(cont<0){
+            cont=0;
+        }
+        score.setText("Score: "+String.valueOf(cont));
+
+        if(cont >4){
+            alarm.start();
+        }
 
        return mRgba;
     }
 
-    public void predictModel(Mat mRgba, Rect rect ){
+    public float predictModel(Mat mRgba, Rect rect ){
         Mat leyes = mRgba.submat(rect);
         Imgproc.cvtColor(leyes, leyes, Imgproc.COLOR_RGB2GRAY);
         Size sz = new Size(24,24);
@@ -169,7 +209,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         float[][] lpred =new float[1][2];
 
         interpreter.run(new_mat,lpred);
-        System.out.println("PREDICT     ---> " + String.valueOf(lpred[0][0]));
+
+        return lpred[0][0];
+
     }
 
 
