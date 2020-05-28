@@ -1,11 +1,18 @@
 package co.edu.udea.driver_drowsiness_app;
 
 import androidx.appcompat.app.AppCompatActivity;
+import java.util.concurrent.TimeUnit;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
+import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.SurfaceView;
+import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -45,37 +52,22 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     FileInputStream inputStream;
     FileChannel fileChannel;
     Interpreter interpreter;
+    TextView score;
+    int cont= 0;
+    MediaPlayer alarm;
+    private final int REQUEST_CODE_ASK_PERMISSIONS = 123;
+    int SLEEPINESS_THRESHOLD = 4;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        init_views();
+        setting_model_files();
+        request_permissions_camera();
+    }
 
-        try {
-            fileDescriptor = getAssets().openFd("cnnCat2.tflite");
-            inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
-            fileChannel = inputStream.getChannel();
-            long startOffset = fileDescriptor.getStartOffset();
-            long declaredLength = fileDescriptor.getDeclaredLength();
-
-            ByteBuffer tfLiteFile = fileChannel.map(FileChannel.MapMode.READ_ONLY,startOffset,declaredLength);
-            interpreter  = new Interpreter(tfLiteFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-       /*
-       *  cameraBridgeViewBase =(JavaCameraView) findViewById(R.id.cameraView);
-        cameraBridgeViewBase.setCameraIndex(1);
-        cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
-        cameraBridgeViewBase.setCvCameraViewListener(this);
-       * */
-
-
-        javaCameraView =(JavaCameraView) findViewById(R.id.cameraView);
-        javaCameraView.setCameraIndex(1);
-        javaCameraView.setVisibility(SurfaceView.VISIBLE);
-
-
+    private void init_opencv() {
         if(!OpenCVLoader.initDebug()){
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this,baseCallback);
 
@@ -86,18 +78,67 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 e.printStackTrace();
             }
         }
+    }
 
+
+    public void init_views(){
+        score = (TextView)findViewById(R.id.score);
+        alarm = MediaPlayer.create(this,R.raw.alarma);
+        javaCameraView =(JavaCameraView) findViewById(R.id.cameraView);
+        javaCameraView.setCameraIndex(1);
+        javaCameraView.setVisibility(SurfaceView.VISIBLE);
         javaCameraView.setCvCameraViewListener(this);
 
+    }
+
+    public void setting_model_files(){
+        try {
+            fileDescriptor = getAssets().openFd("cnnCat2.tflite");
+            inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+            fileChannel = inputStream.getChannel();
+            long startOffset = fileDescriptor.getStartOffset();
+            long declaredLength = fileDescriptor.getDeclaredLength();
+            ByteBuffer tfLiteFile = fileChannel.map(FileChannel.MapMode.READ_ONLY,startOffset,declaredLength);
+            interpreter  = new Interpreter(tfLiteFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void request_permissions_camera(){
+        int hasWriteContactsPermission = checkSelfPermission(Manifest.permission.CAMERA);
+        if (hasWriteContactsPermission != PackageManager.PERMISSION_GRANTED) {
+            // request permission
+            Toast.makeText(this, "Soci@ dame permisos de la cámara", Toast.LENGTH_LONG).show();
+
+            requestPermissions(new String[] {Manifest.permission.CAMERA},
+                    REQUEST_CODE_ASK_PERMISSIONS);
 
 
 
+        }else if (hasWriteContactsPermission == PackageManager.PERMISSION_GRANTED){
+            init_opencv();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if(REQUEST_CODE_ASK_PERMISSIONS == requestCode) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                init_opencv();
+            } else {
+                Toast.makeText(this, "Aja, y los permisos para cuando?", Toast.LENGTH_LONG).show();
+            }
+        }else{
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
     @Override
     public void onCameraViewStarted(int width, int height) {
-        mRgba = new Mat();
-        mGray = new Mat();
+        mGray = new Mat(height,width,CvType.CV_8UC4);
+        mRgba = new Mat(height,width,CvType.CV_8UC4);
+
     }
 
     @Override
@@ -108,64 +149,82 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        //Capturamos las imagenes en RGB y en escala de grises
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
+        Imgproc.cvtColor(mRgba,mGray,Imgproc.COLOR_RGB2GRAY);
 
+        //Definimos los objetos donde almacenamos los rectangulos de los objetos de interes(Rostro, Ojo izquierdo, Ojo derecho )
         MatOfRect faceDetections = new MatOfRect();
         MatOfRect LeyesDetections = new MatOfRect();
         MatOfRect ReyesDetections = new MatOfRect();
-
+        //Definimos las variables para almacenar las prediciones del modelo
+        float P_Leyes = 0;
+        float P_Reyes = 0;
+        //Usamos el objeto CascadeClassifier, para encontrar rostros
         faceDetector.detectMultiScale(mGray,faceDetections);
-
-        //ReyesDetector.detectMultiScale(mGray,ReyesDetections);
-
-
+        //Dibujamos el rectangulo del rostro detectado
         for(Rect rect: faceDetections.toArray()){
-
-            Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
-                    new Scalar(0,255,0));
-
-
-
-
-
-         }
-
+        Imgproc.rectangle(mRgba,new Point(rect.x,rect.y),new Point(rect.x+rect.width, rect.y + rect.height),
+                new Scalar(0,255,0));
+        }
+        //Usamos el objeto CascadeClassifier, para encontrar ojos izquierdos
         LeyesDetector.detectMultiScale(mGray,LeyesDetections);
-        //OJO IZQUIERDO
-        Rect rect_leyes[] = LeyesDetections.toArray();
-        Imgproc.rectangle(mRgba,new Point(rect_leyes[0].x,rect_leyes[0].y),new Point(rect_leyes[0].x+rect_leyes[0].width, rect_leyes[0].y + rect_leyes[0].height),
+        //Left Eyes
+        //Dibujamos el rectangulo del ojo izquierdo detectado
+        for (Rect rect_leyes: LeyesDetections.toArray()){
+        Imgproc.rectangle(mRgba,new Point(rect_leyes.x,rect_leyes.y),new Point(rect_leyes.x+rect_leyes.width,
+                        rect_leyes.y + rect_leyes.height),
                 new Scalar(0,0,255));
-        //System.out.println("IZQUIERDO");
-        //predictModel(face,rect_leyes);
-
-
-        //OJO DERECHO
-
-        for(Rect rect_Reyes: ReyesDetections.toArray()){
-           /*
-           *  Imgproc.rectangle(mRgba,new Point(rect_Reyes.x,rect_Reyes.y),new Point(rect_Reyes.x+rect_Reyes.width, rect_Reyes.y + rect_Reyes.height),
-                    new Scalar(0,255,0));
-
-           * */
-            System.out.println("DERECHO");
-            //predictModel(mRgba,rect);
-
+            //Capturamos la predicion del modelo para el ojo izquierdo
+            P_Leyes = predictModel(mRgba,rect_leyes);
 
         }
+        //Usamos el objeto CascadeClassifier, para encontrar ojos derecho
+        ReyesDetector.detectMultiScale(mGray,ReyesDetections);
+        for(Rect rect_Reyes: ReyesDetections.toArray()){
+            //Capturamos la predicion del modelo para el ojo derecho
+            P_Reyes = predictModel(mRgba,rect_Reyes);
 
+        }
+        /*
+        * Comparamos las prediciones de ambos ojos y si son iguales a 1 (Ojo Cerrado)
+        * aumentamos en una unidad el score, si no disminuimos
+        * */
+        if(P_Leyes == 1 &&   P_Reyes == 1){
+            cont++;
+        }else{
+            cont--;
+        }
+        if(cont<0){
+            cont=0;
+        }
+        //Acutalizamos el score
+        score.setText("Score: "+String.valueOf(cont));
 
+        //Si el score es superior a un umbral de somnolencia (4), reproducimos el tono de alarma
+        if(cont >SLEEPINESS_THRESHOLD){
+            alarm.start();
+        }
 
-
-
-       return mRgba;
+        return mRgba;
     }
 
-    public void predictModel(Mat mRgba, Rect rect ){
+    public float predictModel(Mat mRgba, Rect rect ){
+        //Seleccionamos de la imagen complea la Region de interes
         Mat leyes = mRgba.submat(rect);
+        //Convertimos a escala de grises la imagen
         Imgproc.cvtColor(leyes, leyes, Imgproc.COLOR_RGB2GRAY);
+        /*
+        * Debido a que el modelo que predice si un ojo esta abierto o cerrado,
+        * solo recibe imagenes de dimension 24 x 24, debemos ajustar la imagen a esas
+        * dimensiones
+        * */
         Size sz = new Size(24,24);
         Imgproc.resize(leyes,leyes, sz);
+
+        // Dada la forma del modelo, para poder predecir debemos enviar una tupla de (1,24,24,1)
+        // por lo tanto ajustamos la imagen para que coincidan con dichas imagenes.
         float new_mat[][][][]  = new float[1][24][24][1];
         for (int i =0; i<leyes.size(0);i++) {
             for(int j = 0; j< leyes.size(1);j++){
@@ -173,10 +232,13 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 new_mat[0][i][j][0]=(float) aux[0];
             }
         }
+        //Definimos el vector donde guardaremos la respuesta de las prediciones
         float[][] lpred =new float[1][2];
 
+        //Ejecutamos y retornamos las prediciones
         interpreter.run(new_mat,lpred);
-        System.out.println("PREDICT     ---> " + String.valueOf(lpred[0][0]));
+        return lpred[0][0];
+
     }
 
 
@@ -196,9 +258,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
 
     }
-
-
-
 
     @Override
     protected void onPause() {
@@ -225,8 +284,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             switch (status){
                 case LoaderCallbackInterface.SUCCESS:
 
-
-                    //Face detection classifier
+                   //Face detection classifier
                     InputStream is_face = getResources().openRawResource(R.raw.haarcascade_frontalface_alt2);
                     File cascadeDir_faces = getDir("cascade", Context.MODE_PRIVATE);
                     cascFile_face  = new File(cascadeDir_faces,"haarcascade_frontalface_alt2.xml");
@@ -296,8 +354,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                     }
 
 
-                    javaCameraView.enableFpsMeter();
-                    javaCameraView.enableView();
+                   javaCameraView.enableView();
 
 
                     break;
