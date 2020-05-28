@@ -1,4 +1,4 @@
-package co.edu.udea.driver_drowsiness_app;
+package co.edu.udea.no_mimir;
 
 import org.junit.Test;
 

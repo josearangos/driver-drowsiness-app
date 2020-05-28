@@ -1,17 +1,14 @@
-package co.edu.udea.driver_drowsiness_app;
+package co.edu.udea.no_mimir;
 
 import androidx.appcompat.app.AppCompatActivity;
-import java.util.concurrent.TimeUnit;
 
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.media.MediaPlayer;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.SurfaceView;
-import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,7 +17,6 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
@@ -30,12 +26,10 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
-import org.opencv.objdetect.Objdetect;
 import org.tensorflow.lite.Interpreter;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

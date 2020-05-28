@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="co.edu.udea.driver_drowsiness_app">
+    package="co.edu.udea.no_mimir">
 
 
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -19,7 +19,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity"
+        <activity android:name="co.edu.udea.no_mimir.MainActivity"
             android:screenOrientation="landscape"
             tools:ignore="LockedOrientationActivity">
             <intent-filter>
