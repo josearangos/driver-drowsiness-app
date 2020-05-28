@@ -7,6 +7,8 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
     <TextView
+        android:background="@color/colorPrimary"
+        android:textColor="@color/white"
         android:id="@+id/score"
         android:textSize="20dp"
         android:text="Score: "
@@ -18,7 +20,6 @@
         android:id="@+id/cameraView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="visible"
 
     />
 
